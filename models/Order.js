@@ -1,6 +1,7 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 const User = require('./User');
+const Address = require('./Address');
 
 const Order = sequelize.define('Order', {
     totalAmount: {
@@ -27,5 +28,8 @@ const Order = sequelize.define('Order', {
 
 Order.belongsTo(User, { foreignKey: 'userId', onDelete: 'CASCADE' });
 User.hasMany(Order, { foreignKey: 'userId' });
+
+Order.belongsTo(Address, { foreignKey: 'addressId' });
+Address.hasMany(Order, { foreignKey: 'addressId' });
 
 module.exports = Order;

@@ -23,6 +23,8 @@ const Product = sequelize.define('Product', {
         type: DataTypes.STRING,
         allowNull: true
     }
+}, {
+    paranoid: true
 });
 
 Product.belongsTo(Category, { foreignKey: 'categoryId', onDelete: 'CASCADE' });

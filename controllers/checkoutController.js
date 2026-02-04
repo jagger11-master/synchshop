@@ -2,17 +2,26 @@ const CartItem = require('../models/CartItem');
 const Product = require('../models/Product');
 const Order = require('../models/Order');
 const OrderItem = require('../models/OrderItem');
+const Address = require('../models/Address');
+const Coupon = require('../models/Coupon');
 const sequelize = require('../config/database');
+const { Op } = require('sequelize');
 
 exports.processCheckout = async (req, res) => {
     const transaction = await sequelize.transaction();
     try {
-        const { paymentMethod, accountNumber, pin } = req.body;
+        const { paymentMethod, accountNumber, pin, addressId, couponCode } = req.body;
         const userId = req.user.id;
 
-        // 1. Validate Payment Simulation (Realistic feel)
-        if (!paymentMethod || !accountNumber || !pin) {
-            return res.status(400).json({ error: 'Payment method, Account number, and PIN are required' });
+        // 1. Validate Payment Simulation & Address
+        if (!paymentMethod || !accountNumber || !pin || !addressId) {
+            return res.status(400).json({ error: 'Payment details and Shipping Address are required' });
+        }
+
+        const address = await Address.findOne({ where: { id: addressId, userId } });
+        if (!address) {
+            await transaction.rollback();
+            return res.status(404).json({ error: 'Shipping address not found' });
         }
 
         // In Sandbox, we "process" the transaction if all fields are provided
@@ -38,9 +47,26 @@ exports.processCheckout = async (req, res) => {
             totalAmount += item.Product.price * item.quantity;
         }
 
+        // 3.5 Apply Coupon
+        let discount = 0;
+        if (couponCode) {
+            const coupon = await Coupon.findOne({
+                where: {
+                    code: couponCode,
+                    isActive: true,
+                    expiryDate: { [Op.gt]: new Date() }
+                }
+            });
+            if (coupon) {
+                discount = (coupon.discountPercentage / 100) * totalAmount;
+            }
+        }
+        totalAmount = totalAmount - discount;
+
         // 4. Create Order
         const order = await Order.create({
             userId,
+            addressId,
             totalAmount,
             status: 'paid', // Success simulation
             paymentReference: 'PAY-' + Math.random().toString(36).substr(2, 9).toUpperCase(),

@@ -35,3 +35,21 @@ exports.updateStockManual = async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 };
+
+exports.updateOrderStatus = async (req, res) => {
+    try {
+        const { orderId, status } = req.body;
+        const order = await Order.findByPk(orderId);
+
+        if (!order) {
+            return res.status(404).json({ error: 'Order not found' });
+        }
+
+        order.status = status;
+        await order.save();
+
+        res.json({ message: 'Order status updated', order });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
