@@ -41,9 +41,29 @@ exports.createProduct = async (req, res) => {
     }
 };
 
+const { Op } = require('sequelize');
+
 exports.getProducts = async (req, res) => {
     try {
+        const { search, categoryId, minPrice, maxPrice } = req.query;
+        let where = {};
+
+        if (search) {
+            where.name = { [Op.iLike]: `%${search}%` };
+        }
+
+        if (categoryId) {
+            where.categoryId = categoryId;
+        }
+
+        if (minPrice || maxPrice) {
+            where.price = {};
+            if (minPrice) where.price[Op.gte] = parseFloat(minPrice);
+            if (maxPrice) where.price[Op.lte] = parseFloat(maxPrice);
+        }
+
         const products = await Product.findAll({
+            where,
             include: [ProductImage, Category]
         });
         res.json(products);

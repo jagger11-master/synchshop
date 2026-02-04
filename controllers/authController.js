@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 const { sendOTPEmail } = require('../services/emailService');
 
 exports.register = async (req, res) => {
@@ -47,6 +48,85 @@ exports.verifyOTP = async (req, res) => {
 
         const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '7d' });
         res.json({ message: "Account verified!", token });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+exports.login = async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        const user = await User.findOne({ where: { email } });
+
+        if (!user) {
+            return res.status(401).json({ error: "Invalid email or password" });
+        }
+
+        if (!user.isVerified) {
+            return res.status(401).json({ error: "Please verify your account first" });
+        }
+
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) {
+            return res.status(401).json({ error: "Invalid email or password" });
+        }
+
+        const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+        res.json({
+            message: "Login successful",
+            token,
+            user: {
+                id: user.id,
+                username: user.username,
+                email: user.email,
+                role: user.role
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+exports.forgotPassword = async (req, res) => {
+    try {
+        const { email } = req.body;
+        const user = await User.findOne({ where: { email } });
+
+        if (!user) {
+            return res.status(404).json({ error: "User not found" });
+        }
+
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+
+        user.otpCode = otp;
+        user.otpExpires = otpExpires;
+        await user.save();
+
+        await sendOTPEmail(user.email, otp);
+        res.json({ message: "Password reset OTP sent to your email!" });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+exports.resetPassword = async (req, res) => {
+    try {
+        const { email, otp, newPassword } = req.body;
+        const user = await User.findOne({ where: { email } });
+
+        if (!user || user.otpCode !== otp || user.otpExpires < new Date()) {
+            return res.status(400).json({ error: "Invalid or expired OTP" });
+        }
+
+        // Manual hash update since hooks only run on create or through user.save() if modified
+        const salt = await bcrypt.genSalt(10);
+        user.password = await bcrypt.hash(newPassword, salt);
+        user.otpCode = null;
+        user.otpExpires = null;
+        await user.save();
+
+        res.json({ message: "Password reset successful! You can now login." });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
