@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const Address = require('../models/Address');
+const bcrypt = require('bcryptjs');
 
 exports.getProfile = async (req, res) => {
     try {
@@ -39,50 +40,36 @@ exports.updateProfile = async (req, res) => {
     }
 };
 
+exports.changePassword = async (req, res) => {
+    try {
+        const { currentPassword, newPassword } = req.body;
+        const user = await User.findByPk(req.user.id);
+
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        const isMatch = await bcrypt.compare(currentPassword, user.password);
+        if (!isMatch) {
+            return res.status(400).json({ error: 'Incorrect current password' });
+        }
+
+        const salt = await bcrypt.genSalt(10);
+        user.password = await bcrypt.hash(newPassword, salt);
+        await user.save();
+
+        res.json({ message: 'Password changed successfully' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+// Address methods forwarded to match Address model if needed, 
+// though we usually use addressController now.
 exports.getAddresses = async (req, res) => {
     try {
         const addresses = await Address.findAll({ where: { userId: req.user.id } });
         res.json(addresses);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-};
-
-exports.addAddress = async (req, res) => {
-    try {
-        const { street, city, state, zipCode, country, isDefault } = req.body;
-
-        if (isDefault) {
-            await Address.update({ isDefault: false }, { where: { userId: req.user.id } });
-        }
-
-        const address = await Address.create({
-            userId: req.user.id,
-            street,
-            city,
-            state,
-            zipCode,
-            country,
-            isDefault
-        });
-
-        res.status(201).json(address);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-};
-
-exports.deleteAddress = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const address = await Address.findOne({ where: { id, userId: req.user.id } });
-
-        if (!address) {
-            return res.status(404).json({ error: 'Address not found' });
-        }
-
-        await address.destroy();
-        res.json({ message: 'Address deleted successfully' });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

@@ -24,7 +24,7 @@ const Product = sequelize.define('Product', {
         allowNull: true
     }
 }, {
-    paranoid: true
+    paranoid: true // Enable soft deletes
 });
 
 Product.belongsTo(Category, { foreignKey: 'categoryId', onDelete: 'CASCADE' });

@@ -32,6 +32,15 @@ exports.validateCoupon = async (req, res) => {
     }
 };
 
+exports.getAllCoupons = async (req, res) => {
+    try {
+        const coupons = await Coupon.findAll({ order: [['createdAt', 'DESC']] });
+        res.json(coupons);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
 exports.deleteCoupon = async (req, res) => {
     try {
         const { id } = req.params;

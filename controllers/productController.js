@@ -5,7 +5,16 @@ const ProductVariant = require('../models/ProductVariant');
 
 exports.createProduct = async (req, res) => {
     try {
-        const { name, description, price, stock, categoryId, videoUrl, variants } = req.body;
+        let { name, description, price, stock, categoryId, videoUrl, variants } = req.body;
+
+        // Parse variants if sent as string (Multipart/Form-Data)
+        if (typeof variants === 'string') {
+            try {
+                variants = JSON.parse(variants);
+            } catch (e) {
+                variants = [];
+            }
+        }
 
         if (!req.files || req.files.length === 0) {
             return res.status(400).json({ error: 'At least one product image is required' });

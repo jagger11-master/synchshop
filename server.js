@@ -13,6 +13,7 @@ const reviewRoutes = require('./routes/reviewRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const wishlistRoutes = require('./routes/wishlistRoutes');
 const couponRoutes = require('./routes/couponRoutes');
+const addressRoutes = require('./routes/addressRoutes');
 const { apiLimiter, authLimiter } = require('./middleware/rateLimiter');
 const path = require('path');
 
@@ -33,11 +34,32 @@ app.use('/api/reviews', reviewRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/wishlist', wishlistRoutes);
 app.use('/api/coupons', couponRoutes);
+app.use('/api/addresses', addressRoutes);
 
 const PORT = process.env.PORT || 5001;
 
 sequelize.sync({ alter: true }).then(() => {
-    app.listen(PORT, () => {
+    const server = app.listen(PORT, () => {
         console.log(`Server is running on port ${PORT}`);
+        console.log(`Address Routes registered: ${!!addressRoutes}`);
     });
-}).catch(err => console.log('Database Sync Error: ', err));
+}).catch(err => {
+    console.error('Database Sync Error REASON:', err);
+    process.exit(1);
+});
+
+// Keep process alive check
+setInterval(() => { }, 1000);
+
+process.on('exit', (code) => {
+    console.log(`Process exited with code: ${code}`);
+});
+
+process.on('SIGINT', () => {
+    console.log('Received SIGINT. Press Control-D to exit.');
+    process.exit();
+});
+
+process.on('uncaughtException', (err) => {
+    console.error('Uncaught Exception:', err);
+});

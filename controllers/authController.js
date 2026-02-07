@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const fs = require('fs');
 const { sendOTPEmail } = require('../services/emailService');
 
 exports.register = async (req, res) => {
@@ -47,7 +48,16 @@ exports.verifyOTP = async (req, res) => {
         await user.save();
 
         const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '7d' });
-        res.json({ message: "Account verified!", token });
+        res.json({
+            message: "Account verified!",
+            token,
+            user: {
+                id: user.id,
+                username: user.username,
+                email: user.email,
+                role: user.role
+            }
+        });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -56,18 +66,23 @@ exports.verifyOTP = async (req, res) => {
 exports.login = async (req, res) => {
     try {
         const { email, password } = req.body;
+        const logMsg = `[${new Date().toISOString()}] Login attempt for: ${email}\n`;
+        fs.appendFileSync('login_debug.log', logMsg);
         const user = await User.findOne({ where: { email } });
 
         if (!user) {
+            fs.appendFileSync('login_debug.log', `[${new Date().toISOString()}] Login failed: User not found for email ${email}\n`);
             return res.status(401).json({ error: "Invalid email or password" });
         }
 
         if (!user.isVerified) {
+            console.log(`Login failed: User ${email} not verified`);
             return res.status(401).json({ error: "Please verify your account first" });
         }
 
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
+            fs.appendFileSync('login_debug.log', `[${new Date().toISOString()}] Login failed: Password mismatch for ${email}. User hashed password: ${user.password}\n`);
             return res.status(401).json({ error: "Invalid email or password" });
         }
 

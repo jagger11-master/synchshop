@@ -3,6 +3,14 @@ const sequelize = require('../config/database');
 const User = require('./User');
 
 const Address = sequelize.define('Address', {
+    fullName: {
+        type: DataTypes.STRING,
+        allowNull: false
+    },
+    phone: {
+        type: DataTypes.STRING,
+        allowNull: false
+    },
     street: {
         type: DataTypes.STRING,
         allowNull: false
